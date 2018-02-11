@@ -1,0 +1,103 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+     <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <title>audio demo 3</title>
+    <style>
+html {
+  background-color: black;
+  background-image: url(slo_milana.jpg);
+  background-size: 100vh;
+  background-position: 50% 0%;
+  background-repeat: no-repeat;
+  cursor: none;
+} 
+.light {
+  position: fixed;
+  width: 100px;
+  height: 100px;
+  margin: -50px 0px 0px -50px;
+  border-radius: 50px;
+  background: #f6f6f61a;
+}
+    </style>
+  </head>
+  <body>
+    <div class="light" />
+    <script>
+function debounce(func, wait, immediate) {
+  var timeout
+  return function() {
+    var context = this, args = arguments
+    var later = function() {
+      timeout = null
+      if (!immediate) func.apply(context, args)
+    }
+    var callNow = immediate && !timeout
+    clearTimeout(timeout)
+    timeout = setTimeout(later, wait)
+    if (callNow) func.apply(context, args)
+  }
+}
+
+const ctx = new (window.AudioContext || window.webkitAudioContext)()
+const sourceNode = ctx.createBufferSource()
+const outputNode = ctx.destination
+
+function init() {
+  const request = new XMLHttpRequest()
+  request.open('GET', 'slo_milana.mp3', true)
+  request.responseType = 'arraybuffer'
+  request.onload = function() {
+    const audioData = request.response
+    ctx.decodeAudioData(audioData, function(buffer) {
+      const songLength = buffer.duration
+      sourceNode.buffer = buffer
+
+      const gainNode = ctx.createGain()
+      gainNode.gain.value = 0.7
+
+              
+      const lowPassNode = ctx.createBiquadFilter()
+      lowPassNode.type = 'lowpass'
+
+      const minMaxLowPass = [0, 8000]
+      lowPassNode.frequency.value = 8000
+
+      const minMaxLowPassQ = [0.1, 13]
+      lowPassNode.Q.value = 0.1
+
+
+     document.addEventListener("mousemove", debounce(function(e) {
+        const ratioX = (e.clientX / window.innerWidth)
+        const ratioY = 1 - (e.clientY / window.innerHeight)
+
+        const light = document.querySelector(".light")
+        light.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`
+
+        lowPassNode.frequency.value = minMaxLowPass[0] + ratioY * (minMaxLowPass[1] - minMaxLowPass[0])
+        lowPassNode.Q.value = minMaxLowPassQ[0] + ratioX * (minMaxLowPassQ[1] - minMaxLowPassQ[0])
+
+      }), 10)
+
+      sourceNode
+        .connect(lowPassNode)
+        .connect(gainNode)
+        .connect(outputNode)
+
+      sourceNode.playbackRate.value = 1.0
+
+      sourceNode.loop = true
+      sourceNode.start(0, 0)
+
+    },
+    function(e){"Error with decoding audio data" + e.err})
+  }
+
+  request.send()
+}
+init()
+    </script>
+  </body>
+</html>
